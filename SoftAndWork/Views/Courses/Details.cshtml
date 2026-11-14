@@ -1,0 +1,145 @@
+@model SoftAndWork.Models.Course
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 style="color: #4a148c; font-weight: 700;">@Model.Title</h2>
+        <a asp-action="Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Derslere Dön</a>
+    </div>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger shadow-sm"><i class="bi bi-exclamation-triangle"></i> @TempData["Error"]</div>
+    }
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success shadow-sm"><i class="bi bi-check-circle"></i> @TempData["Success"]</div>
+    }
+
+    <div class="card mb-5">
+        <div class="card-body p-4">
+            <h5 class="card-title mb-4 fw-bold"><i class="bi bi-cloud-arrow-up text-primary"></i> Yeni Kaynak Yükle (15 Soru + Pratik Ders Özeti)</h5>
+            <form asp-action="AddMaterial" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="courseId" value="@Model.Id" />
+                <div class="mb-4">
+                    <label class="form-label text-muted">Kaynak Adı (İsteğe Bağlı)</label>
+                    <input type="text" name="fileName" class="form-control" placeholder="Örn: Vize Notları 1. Kısım" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold" style="color: #2e7d32;">
+                        <i class="bi bi-files"></i> Çoklu PDF veya Fotoğraf Yükle (Birden fazla seçebilirsiniz)
+                    </label>
+                    <input type="file" name="uploadedFiles" id="uploadedFiles" class="form-control" multiple accept=".pdf,image/png,image/jpeg,image/jpg,image/webp" />
+                    <div class="form-text text-muted">Ctrl veya Shift tuşuna basarak aynı anda birden fazla PDF veya ders notu fotoğrafı seçebilirsiniz.</div>
+                    <div id="selected-files-list" class="mt-2"></div>
+                </div>
+                <div class="text-center text-muted mb-3 fw-bold">VEYA / BİRLİKTE</div>
+                <div class="mb-4">
+                    <label class="form-label fw-bold" style="color: #6a1b9a;"><i class="bi bi-fonts"></i> Metin Yapıştır</label>
+                    <textarea name="extractedText" class="form-control" rows="4" placeholder="Okunmasını istediğiniz metni buraya yapıştırabilirsiniz..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-lg w-100 text-white" style="background-color: #4a148c;">
+                    <i class="bi bi-magic"></i> Analiz Et, Pratik Özet Çıkar ve 15 Soru Üret
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <h4 class="mb-3 fw-bold">Kayıtlı Materyaller</h4>
+    <div class="list-group shadow-sm">
+        @if (!Model.Materials.Any())
+        {
+            <div class="text-muted p-3 text-center">Henüz kaynak yüklemediniz.</div>
+        }
+        @foreach (var mat in Model.Materials)
+        {
+            <div class="list-group-item p-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <strong class="fs-5">@mat.FileName</strong>
+                        <span class="badge bg-success ms-2">Toplam @mat.GeneratedQuestions.Count Soru</span>
+                        @if (!string.IsNullOrWhiteSpace(mat.Summary))
+                        {
+                            <span class="badge bg-info text-dark ms-1"><i class="bi bi-journal-check"></i> Özet Hazır</span>
+                        }
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-info btn-sm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#summaryModal-@mat.Id">
+                            <i class="bi bi-book-half"></i> Pratik Özeti Gör
+                        </button>
+
+                        @if (mat.GeneratedQuestions.Count < 40)
+                        {
+                            <form asp-action="ExpandPool" method="post" class="m-0">
+                                <input type="hidden" name="materialId" value="@mat.Id" />
+                                <button type="submit" class="btn btn-warning btn-sm fw-bold"><i class="bi bi-plus-circle"></i> Havuzu Genişlet (+25)</button>
+                            </form>
+                        }
+                        <form asp-controller="Study" asp-action="Start" method="post" class="m-0">
+                            <input type="hidden" name="materialId" value="@mat.Id" />
+                            <input type="hidden" name="forceNew" value="true" />
+                            <button type="submit" class="btn btn-sm text-white fw-bold" style="background-color: #6a1b9a;"><i class="bi bi-play-fill"></i> Çalışmaya Başla</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="summaryModal-@mat.Id" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content" style="border-radius: 15px;">
+                        <div class="modal-header text-white" style="background: linear-gradient(90deg, #4a148c, #6a1b9a);">
+                            <h5 class="modal-title fw-bold"><i class="bi bi-lightbulb-fill text-warning"></i> Pratik Ders Özeti: @mat.FileName</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                        </div>
+                        <div class="modal-body p-4" style="background-color: #fafafa;">
+                            @if (!string.IsNullOrWhiteSpace(mat.Summary))
+                            {
+                                <div class="p-3 bg-white rounded border shadow-sm" style="white-space: pre-line; line-height: 1.7; font-size: 1.02rem; color: #222;">
+                                    @mat.Summary
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="text-center py-4">
+                                    <p class="text-muted mb-3">Bu kaynak için henüz pratik ders özeti oluşturulmamış.</p>
+                                    <form asp-action="GenerateSummary" method="post">
+                                        <input type="hidden" name="materialId" value="@mat.Id" />
+                                        <button type="submit" class="btn btn-primary fw-bold"><i class="bi bi-magic"></i> Şimdi Yapay Zeka ile Özet Oluştur</button>
+                                    </form>
+                                </div>
+                            }
+                        </div>
+                        <div class="modal-footer justify-content-between">
+                            <form asp-action="GenerateSummary" method="post" class="m-0">
+                                <input type="hidden" name="materialId" value="@mat.Id" />
+                                <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-clockwise"></i> Özeti Yenile</button>
+                            </form>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $('#uploadedFiles').on('change', function() {
+            const files = this.files;
+            const container = $('#selected-files-list');
+            container.empty();
+            if (files.length > 0) {
+                let html = '<div class="alert alert-light border p-2 mb-0 small"><strong>Seçilen Dosyalar (' + files.length + ' adet):</strong><ul class="mb-0 mt-1">';
+                for (let i = 0; i < files.length; i++) {
+                    let sizeMb = (files[i].size / (1024 * 1024)).toFixed(2);
+                    html += '<li>' + files[i].name + ' <span class="text-muted">(' + sizeMb + ' MB)</span></li>';
+                }
+                html += '</ul></div>';
+                container.html(html);
+            }
+        });
+    </script>
+}

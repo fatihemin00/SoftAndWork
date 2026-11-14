@@ -1,0 +1,534 @@
+﻿@model SoftAndWork.Models.StudySession
+@{
+    ViewData["Title"] = "Odak Modu";
+    Layout = "_Layout";
+}
+
+<div class="container mt-4" style="max-width: 760px;">
+    <div id="loading-area" class="text-center my-5">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+        <p class="mt-3 text-muted fw-bold">Sorular yükleniyor, lütfen bekleyin...</p>
+    </div>
+
+    <div id="error-area" class="alert alert-danger mt-4 shadow-sm" style="display:none;">
+        <h5 class="fw-bold"><i class="bi bi-exclamation-triangle-fill"></i> Bir Sorun Oluştu</h5>
+        <p id="error-message" class="mb-3"></p>
+        <a asp-controller="Courses" asp-action="Index" class="btn btn-outline-danger fw-bold">Derslerime Dön</a>
+    </div>
+
+    <div id="quiz-area" style="display:none;">
+        <div class="d-flex justify-content-between mb-3 align-items-center">
+            <span id="phase-badge" class="badge p-2 fs-6 text-white" style="background: linear-gradient(45deg, #4a148c, #6a1b9a);"></span>
+            <span id="progress-text" class="text-muted fw-bold fs-6"></span>
+        </div>
+
+        <div id="question-palette" class="d-flex flex-wrap gap-1 mb-3 p-2 bg-white rounded shadow-sm border"></div>
+
+        <div id="blank-pre-box" class="card mb-3 border-warning shadow-sm" style="display:none; background-color: #fffde7; border-width: 2px;">
+            <div class="card-body">
+                <h5 class="fw-bold text-warning-emphasis mb-2">
+                    <i class="bi bi-lightbulb-fill text-warning"></i> Bu Soruyu İlk Turda Boş Bırakmıştın!
+                </h5>
+                <p class="text-muted small mb-2">Soruyu çözmeden önce konusunu kısaca hatırlayalım (<strong id="blank-topic-tag"></strong>):</p>
+                <div id="blank-explanation-content" class="p-3 bg-white rounded border mb-3" style="font-size: 1.05rem; line-height: 1.6;"></div>
+
+                <p class="fw-bold text-dark mb-2">Konuyu anladın mı, şimdi soruyu çözmeye geçelim mi?</p>
+                <div class="d-flex flex-wrap gap-2" id="blank-pre-buttons">
+                    <button type="button" class="btn btn-success flex-grow-1 fw-bold p-2" id="btn-blank-understood">
+                        <i class="bi bi-check-circle-fill"></i> Anladım, Soruyu Çözeyim
+                    </button>
+                    <button type="button" class="btn btn-outline-danger flex-grow-1 fw-bold p-2" id="btn-blank-simple">
+                        <i class="bi bi-question-circle"></i> Anlamadım, Daha Basit Anlat (AI)
+                    </button>
+                </div>
+
+                <div id="blank-simple-loader" class="text-center mt-3" style="display:none;">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="text-muted mt-2 small">Yapay zeka konuyu senin için çok basitleştiriyor...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-2 mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge bg-light text-dark border" id="question-topic-badge"></span>
+                    <span id="question-status-label" class="small fw-bold"></span>
+                </div>
+                <h5 id="question-text" class="mb-4 fw-bold" style="line-height: 1.6; color: #333;"></h5>
+
+                <div class="d-grid gap-3" id="options-container">
+                    <button class="btn btn-outline-secondary text-start p-3 option-btn fs-6" data-opt="A"><strong class="me-2 text-primary">A)</strong> <span id="opt-A"></span></button>
+                    <button class="btn btn-outline-secondary text-start p-3 option-btn fs-6" data-opt="B"><strong class="me-2 text-primary">B)</strong> <span id="opt-B"></span></button>
+                    <button class="btn btn-outline-secondary text-start p-3 option-btn fs-6" data-opt="C"><strong class="me-2 text-primary">C)</strong> <span id="opt-C"></span></button>
+                    <button class="btn btn-outline-secondary text-start p-3 option-btn fs-6" data-opt="D"><strong class="me-2 text-primary">D)</strong> <span id="opt-D"></span></button>
+                </div>
+
+                <div id="nav-controls" class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-4 pt-3 border-top">
+                    <button type="button" class="btn btn-outline-dark fw-bold" id="btn-prev-q">
+                        <i class="bi bi-arrow-left"></i> Geçmiş Soruyu Gör
+                    </button>
+
+                    <button type="button" class="btn btn-warning fw-bold text-dark" id="btn-skip-q">
+                        <i class="bi bi-skip-forward-fill"></i> Boş Bırak
+                    </button>
+
+                    <button type="button" class="btn btn-outline-primary fw-bold" id="btn-next-q">
+                        Diğer Soruyu Gör <i class="bi bi-arrow-right"></i>
+                    </button>
+
+                    <button type="button" class="btn btn-success fw-bold" id="btn-finish-first">
+                        <i class="bi bi-flag-fill"></i> Testi Bitir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="feedback-area" class="card mt-4" style="display:none; border-left: 6px solid #d81b60; background-color: #fff0f4;">
+        <div class="card-body">
+            <h5 class="text-danger fw-bold mb-3"><i class="bi bi-x-circle-fill"></i> Yanlış Yaptın! (Doğrusu: <span id="correct-opt-text"></span>)</h5>
+            <div id="explanation-box" class="p-3 mb-3 bg-white rounded shadow-sm border">
+                <p id="short-explanation" class="mb-0" style="font-size: 1.05rem;"></p>
+            </div>
+            <p class="fw-bold text-dark mb-2">Bu açıklamayı okudun mu, konu anlaşıldı mı?</p>
+            <div class="d-flex gap-2" id="feedback-buttons">
+                <button class="btn btn-success flex-grow-1 fw-bold p-2 feedback-btn" data-val="true"><i class="bi bi-check-lg"></i> Anladım, Devam Et</button>
+                <button class="btn btn-danger flex-grow-1 fw-bold p-2" id="btn-anlamadim"><i class="bi bi-question-circle"></i> Hiç Anlamadım (Daha Basit Anlat)</button>
+            </div>
+
+            <div id="simple-explanation-loader" class="text-center mt-3" style="display:none;">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="text-muted mt-2 small">Yapay zeka konuyu senin için çok basitleştiriyor...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="completed-area" class="mt-4 card p-4 p-md-5 shadow" style="display:none; background: #ffffff; border-top: 6px solid #2e7d32;">
+        <div class="text-center mb-4">
+            <h2 style="color: #2e7d32;" class="fw-bold"><i class="bi bi-trophy-fill text-warning"></i> Test Tamamlandı!</h2>
+            <p class="fs-5 text-muted mt-2" id="completed-msg"></p>
+        </div>
+
+        <div class="row g-3 text-center mb-4">
+            <div class="col-6 col-md-3">
+                <div class="p-3 rounded border bg-light">
+                    <div class="small text-muted fw-bold">Toplam Soru</div>
+                    <div class="fs-3 fw-bold text-dark" id="stat-total">0</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-3 rounded border" style="background-color: #e8f5e9;">
+                    <div class="small text-success fw-bold">İlk Tur Doğru</div>
+                    <div class="fs-3 fw-bold text-success" id="stat-correct">0</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-3 rounded border" style="background-color: #ffebee;">
+                    <div class="small text-danger fw-bold">İlk Tur Yanlış</div>
+                    <div class="fs-3 fw-bold text-danger" id="stat-wrong">0</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-3 rounded border" style="background-color: #fffde7;">
+                    <div class="small text-warning-emphasis fw-bold">Boş Bırakılan</div>
+                    <div class="fs-3 fw-bold text-warning-emphasis" id="stat-blank">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="recovery-section" class="mb-4" style="display:none;">
+            <h5 class="fw-bold mb-3" style="color: #4a148c;"><i class="bi bi-graph-up-arrow"></i> Yanlış & Boş Sorular Kaçıncı Denemede Doğru Bulundu?</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle small bg-white">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Soru</th>
+                            <th>Konu Başlığı</th>
+                            <th>İlk Durum</th>
+                            <th>Yanlış Deneme</th>
+                            <th>Sonuç</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recovery-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <label for="weak-topics-box" class="fw-bold text-danger fs-6">
+                    <i class="bi bi-exclamation-octagon-fill"></i> Üst Üste Yanlış Yapılan ve Tekrar Edilmesi Gereken Konu Başlıkları:
+                </label>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-copy-topics">
+                    <i class="bi bi-clipboard"></i> Kopyala
+                </button>
+            </div>
+            <textarea id="weak-topics-box" class="form-control fw-medium" rows="6" readonly style="background-color: #fff8f8; border-color: #f5c2c7; color: #222;"></textarea>
+        </div>
+
+        <div class="d-flex flex-wrap justify-content-center gap-3 mt-4">
+            <form asp-controller="Study" asp-action="Start" method="post" class="m-0">
+                <input type="hidden" name="materialId" value="@ViewBag.MaterialId" />
+                <input type="hidden" name="forceNew" value="true" />
+                <button type="submit" class="btn btn-lg btn-outline-primary fw-bold">
+                    <i class="bi bi-arrow-repeat"></i> Testi Baştan Çöz
+                </button>
+            </form>
+            <a asp-controller="Courses" asp-action="Index" class="btn btn-lg btn-success fw-bold shadow">
+                <i class="bi bi-journal-bookmark"></i> Derslerime Dön
+            </a>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        var sessionId = @(Model != null ? Model.Id : 0);
+                var materialId = @(ViewBag.MaterialId ?? 0);
+        var currentQId = 0;
+                var currentRId = 0;
+          var currentIndex = 0;
+            var totalQuestions = 0;
+            var currentPhase = "";
+                var latestStatuses = [];
+
+            $(document ).ready(function () {
+                 if (!sessionId || !materialId) {
+                showError ("Oturum bilgisi geçersiz. Lütfen Derslerim sayfasından tekrar Çalışmaya Başla butonuna basın.");
+                        return;
+                    }
+                loadQuestion();
+                });
+
+            function showError(msg) {
+           $('#loading-area').hide();
+                    $('#quiz-area').hide();
+           $('#error-message').text(msg);
+             $('#error-area').fadeIn();
+                }
+
+            function loadQuestion(targetIndex) {
+                    $('#feedback-area').slideUp();
+          $('#blank-pre-box').hide();
+              $('#options-container').show();
+            $('.option-btn').removeClass('btn-success btn-danger text-white').addClass('btn-outline-secondary').prop('disabled', false);
+                $('#question-status-label').text('');
+
+                   var params = { sessionId: sessionId, materialId: materialId };
+                  if (targetIndex !== undefined && targetIndex !== null) {
+                    params.index = targetIndex;
+                    }
+
+                    $.get('/Study/GetNextQuestion', params)
+                        .done(function (res) {
+                    $('#loading-area').hide();
+
+                    if (!res || !res.phase) {
+                        showError("Sunucudan beklenmeyen bir yanıt alındı.");
+                        return;
+                    }
+
+                            if (res.phase === "Error") {
+                    showError(res.message || "Sorular yüklenirken hata oluştu.");
+                 return;
+            }
+
+                            currentPhase = res.phase;
+
+          if (res.phase === "Completed") {
+               renderCompletedScreen(res);
+                return;
+                    }
+
+                $('#quiz-area').fadeIn();
+                currentQId = res.question.id;
+                currentIndex = res.index;
+                            totalQuestions = res.total;
+
+                    $('#question-topic-badge').text(res.question.topicTag || "Genel Konu");
+                    $('#question-text').text(res.question.text);
+                    $('#opt-A').text(res.question.optionA);
+                        $('#opt-B').text(res.question.optionB);
+                            $('#opt-C').text(res.question.optionC);
+                            $('#opt-D').text(res.question.optionD);
+
+                            if (res.phase === "FirstTest") {
+                                latestStatuses = res.statuses || [];
+                                $('#phase-badge').text("1. Tur: Ana Test");
+                                $('#progress-text').text("Soru " + (res.index + 1) + " / " + res.total);
+                                $('#nav-controls').show();
+                                $('#question-palette').show();
+
+                                renderPalette(latestStatuses, res.index);
+
+                                $('#btn-prev-q').prop('disabled', res.index === 0);
+                                $('#btn-next-q').prop('disabled', res.index >= res.total - 1);
+
+                                if (res.existingResponse) {
+                                    var er = res.existingResponse;
+                                    if (er.isBlank) {
+                                        $('#question-status-label').html('<span class="badge bg-warning text-dark">Bu soruyu boş bıraktın (Şimdi çözebilirsin)</span>');
+                                        $('#btn-skip-q').prop('disabled', false);
+                                    } else {
+                                        $('.option-btn').prop('disabled', true);
+                                        $('#btn-skip-q').prop('disabled', true);
+                                        if (er.isCorrect) {
+                                            $('.option-btn[data-opt="' + er.selectedOption + '"]').removeClass('btn-outline-secondary').addClass('btn-success text-white');
+                                            $('#question-status-label').html('<span class="badge bg-success">Doğru Cevaplandı</span>');
+                                        } else {
+                                            $('.option-btn[data-opt="' + er.selectedOption + '"]').removeClass('btn-outline-secondary').addClass('btn-danger text-white');
+                                            $('.option-btn[data-opt="' + er.correctOption + '"]').removeClass('btn-outline-secondary').addClass('btn-success text-white');
+                                            $('#question-status-label').html('<span class="badge bg-danger">Yanlış Cevaplandı</span>');
+                                        }
+                                    }
+                                } else {
+                                    $('#btn-skip-q').prop('disabled', false);
+                                }
+                            }
+                            else if (res.phase === "ReTest") {
+                                $('#phase-badge').text("2. Tur: Telafi (Yanlış & Boşlar)");
+                                $('#progress-text').text("Kalan Soru: " + res.remainingCount + " / " + res.total);
+                                $('#nav-controls').hide();
+                                $('#question-palette').hide();
+
+                                if (res.wasBlank) {
+                                    $('#question-status-label').html('<span class="badge bg-warning text-dark">İlk Turda Boş Bırakıldı</span>');
+                                } else {
+                                    $('#question-status-label').html('<span class="badge bg-danger">İlk Turda Yanlış Yapıldı</span>');
+                                }
+
+                                if (res.requiresPreExplanation) {
+                                    $('#options-container').hide();
+                                    $('#blank-topic-tag').text(res.topicTag || "Konu Özeti");
+                                    $('#blank-explanation-content').css('background-color', '#ffffff').text(res.explanation);
+                                    $('#blank-pre-buttons').html(
+                                        '<button type="button" class="btn btn-success flex-grow-1 fw-bold p-2" id="btn-blank-understood">' +
+                                        '<i class="bi bi-check-circle-fill"></i> Anladım, Soruyu Çözeyim</button>' +
+                                        '<button type="button" class="btn btn-outline-danger flex-grow-1 fw-bold p-2" id="btn-blank-simple">' +
+                                        '<i class="bi bi-question-circle"></i> Anlamadım, Daha Basit Anlat (AI)</button>'
+                                    ).show();
+                                    $('#blank-simple-loader').hide();
+                                    $('#blank-pre-box').fadeIn();
+                                }
+                            }
+                        })
+                        .fail(function (xhr) {
+                            showError("Sorular çekilirken sunucu hatası oluştu (HTTP " + xhr.status + "). Lütfen sayfayı yenileyin veya tekrar deneyin.");
+                        });
+                }
+
+                function getNextTargetIndex(isCurrentAnswered) {
+                    if (currentIndex + 1 < totalQuestions) return currentIndex + 1;
+                    for (var i = 0; i < latestStatuses.length; i++) {
+                        var s = latestStatuses[i];
+                        if (s.status === "unanswered" && !(isCurrentAnswered && s.index === currentIndex)) {
+                            return s.index;
+                        }
+                    }
+                    return null;
+                }
+
+                function renderPalette(statuses, activeIdx) {
+                    var palette = $('#question-palette');
+                    palette.empty();
+                    for (var i = 0; i < statuses.length; i++) {
+                        var s = statuses[i];
+                        var btnClass = "btn-outline-secondary";
+                        if (s.status === "correct") btnClass = "btn-success text-white";
+                        else if (s.status === "wrong") btnClass = "btn-danger text-white";
+                        else if (s.status === "blank") btnClass = "btn-warning text-dark";
+
+                        var activeStyle = (s.index === activeIdx) ? "border: 3px solid #4a148c; transform: scale(1.08);" : "";
+                        palette.append('<button type="button" class="btn btn-sm ' + btnClass + ' fw-bold palette-item" data-idx="' + s.index + '" style="width: 36px; ' + activeStyle + '">' + (s.index + 1) + '</button>');
+                    }
+                }
+
+                $(document).on('click', '.palette-item', function () {
+                    loadQuestion($(this).data('idx'));
+                });
+
+                $('#btn-prev-q').click(function () {
+                    if (currentIndex > 0) loadQuestion(currentIndex - 1);
+                });
+
+                $('#btn-next-q').click(function () {
+                    if (currentIndex + 1 < totalQuestions) loadQuestion(currentIndex + 1);
+                });
+
+                $('#btn-skip-q').click(function () {
+                    $.post('/Study/SkipQuestion', {
+                        sessionId: sessionId,
+                        questionId: currentQId,
+                        currentIndex: currentIndex,
+                        totalCount: totalQuestions
+                    }, function (res) {
+                        if (res.isLast) {
+                            if (confirm("Son soruyu da boş bıraktın. İlk testi bitirip telafi turuna geçmek ister misin?")) {
+                                finishFirstTest();
+                            } else {
+                                loadQuestion(currentIndex);
+                            }
+                        } else {
+                            loadQuestion(res.nextIndex);
+                        }
+                    });
+                });
+
+                $('#btn-finish-first').click(function () {
+                    if (confirm("İlk testi bitirmek istiyor musun? Cevaplanmayan sorular boş bırakılmış sayılacak ve yanlış/boş soruların telafi turuna geçilecek.")) {
+                        finishFirstTest();
+                    }
+                });
+
+                function finishFirstTest() {
+                    $.post('/Study/FinishFirstTest', { sessionId: sessionId, materialId: materialId }, function (res) {
+                        if (res.message) alert(res.message);
+                        loadQuestion();
+                    });
+                }
+
+                $(document).on('click', '#btn-blank-understood', function () {
+                    $('#blank-pre-box').slideUp();
+                    $('#options-container').fadeIn();
+                });
+
+                $(document).on('click', '#btn-blank-simple', function () {
+                    $('#blank-pre-buttons').hide();
+                    $('#blank-simple-loader').show();
+                    $.post('/Study/GetSimpleExplanation', { questionId: currentQId }, function (res) {
+                        $('#blank-simple-loader').hide();
+                        $('#blank-explanation-content').css('background-color', '#fff9c4').html("<strong>Yapay Zeka Konu Anlatımı:</strong><br><br>" + res.explanation);
+                        $('#blank-pre-buttons').html(
+                            '<button type="button" class="btn btn-warning w-100 fw-bold p-2" id="btn-blank-understood">' +
+                            '<i class="bi bi-emoji-smile"></i> Tamam, Şimdi Anladım! Soruyu Çözeyim</button>'
+                        ).fadeIn();
+                    });
+                });
+
+                $('.option-btn').click(function () {
+                    var btn = $(this), selected = btn.data('opt');
+                    $('.option-btn').prop('disabled', true);
+                    $('#btn-skip-q').prop('disabled', true);
+
+                    $.post('/Study/SubmitAnswer', { sessionId: sessionId, questionId: currentQId, selectedOption: selected }, function (res) {
+                        currentRId = res.responseId;
+                        var nextIdx = getNextTargetIndex(true);
+
+                        if (res.isCorrect) {
+                            btn.removeClass('btn-outline-secondary').addClass('btn-success text-white');
+                            setTimeout(function () {
+                                $.post('/Study/SubmitFeedback', { sessionId: sessionId, responseId: currentRId, understood: true, nextIndex: nextIdx !== null ? nextIdx : currentIndex }, function () {
+                                    if (currentPhase === "FirstTest" && nextIdx === null) {
+                                        finishFirstTest();
+                                    } else {
+                                        loadQuestion(currentPhase === "FirstTest" ? nextIdx : null);
+                                    }
+                                });
+                            }, 900);
+                        } else {
+                            btn.removeClass('btn-outline-secondary').addClass('btn-danger text-white');
+                            $('.option-btn[data-opt="' + res.correctOption + '"]').removeClass('btn-outline-secondary').addClass('btn-success text-white');
+                            $('#correct-opt-text').text(res.correctOption);
+                            $('#explanation-box').addClass('bg-white').css('background-color', '');
+                            $('#short-explanation').text(res.explanation);
+
+                            $('#feedback-buttons').html(
+                                '<button class="btn btn-success flex-grow-1 fw-bold p-2 feedback-btn" data-val="true"><i class="bi bi-check-lg"></i> Anladım, Devam Et</button>' +
+                                '<button class="btn btn-danger flex-grow-1 fw-bold p-2" id="btn-anlamadim"><i class="bi bi-question-circle"></i> Hiç Anlamadım (Daha Basit Anlat)</button>'
+                            ).show();
+                            $('#simple-explanation-loader').hide();
+                            $('#feedback-area').slideDown();
+                        }
+                    });
+                });
+
+                $(document).on('click', '.feedback-btn', function () {
+                    var nextIdx = getNextTargetIndex(true);
+                    $.post('/Study/SubmitFeedback', { sessionId: sessionId, responseId: currentRId, understood: $(this).data('val'), nextIndex: nextIdx !== null ? nextIdx : currentIndex }, function () {
+                        if (currentPhase === "FirstTest" && nextIdx === null) {
+                            finishFirstTest();
+                        } else {
+                            loadQuestion(currentPhase === "FirstTest" ? nextIdx : null);
+                        }
+                    });
+                });
+
+                $(document).on('click', '#btn-anlamadim', function () {
+                    $('#feedback-buttons').hide();
+                    $('#simple-explanation-loader').show();
+                    $.post('/Study/GetSimpleExplanation', { questionId: currentQId }, function (res) {
+                        $('#simple-explanation-loader').hide();
+                        $('#explanation-box').removeClass('bg-white').css('background-color', '#fff9c4');
+                        $('#short-explanation').html("<strong>Yapay Zeka Diyorki:</strong><br><br>" + res.explanation);
+                        $('#feedback-buttons').html('<button class="btn btn-warning w-100 fw-bold p-3 feedback-btn" data-val="true"><i class="bi bi-emoji-smile"></i> Tamam, Şimdi Anladım! Devam Et</button>').fadeIn();
+                    });
+                });
+
+                function renderCompletedScreen(res) {
+                    $('#quiz-area').hide();
+                    $('#feedback-area').hide();
+                    $('#completed-msg').text(res.message || "Test tamamlandı!");
+
+                    if (res.stats) {
+                        $('#stat-total').text(res.stats.totalQuestions);
+                        $('#stat-correct').text(res.stats.firstCorrect);
+                        $('#stat-wrong').text(res.stats.firstWrong);
+                        $('#stat-blank').text(res.stats.firstBlank);
+
+                        if (res.stats.recoveryStats && res.stats.recoveryStats.length > 0) {
+                            var tbody = $('#recovery-table-body');
+                            tbody.empty();
+                            for (var i = 0; i < res.stats.recoveryStats.length; i++) {
+                                var item = res.stats.recoveryStats[i];
+                                var statusBadge = item.initialStatus === "Boş Bırakıldı"
+                                    ? '<span class="badge bg-warning text-dark">Boş Bırakıldı</span>'
+                                    : '<span class="badge bg-danger">Yanlış Yapıldı</span>';
+
+                                tbody.append(
+                                    '<tr>' +
+                                    '<td>' + item.questionText + '</td>' +
+                                    '<td><strong>' + item.topicTag + '</strong></td>' +
+                                    '<td>' + statusBadge + '</td>' +
+                                    '<td class="text-center fw-bold text-danger">' + item.wrongAttempts + ' yanlış</td>' +
+                                    '<td class="fw-bold text-success">' + item.foundOnAttempt + '. denemede doğru bulundu</td>' +
+                                    '</tr>'
+                                );
+                            }
+                            $('#recovery-section').show();
+                        }
+
+                        var reportLines = [];
+                        if (res.stats.consecutiveTopics && res.stats.consecutiveTopics.length > 0) {
+                            reportLines.push("⚠️ ÜST ÜSTE YANLIŞ YAPILAN KONU BAŞLIKLARI:");
+                            for (var j = 0; j < res.stats.consecutiveTopics.length; j++) {
+                                reportLines.push((j + 1) + ". " + res.stats.consecutiveTopics[j]);
+                            }
+                        } else {
+                            reportLines.push("✅ Üst üste aynı konuda tekrarlayan hata yapmadınız.");
+                        }
+
+                        if (res.stats.allWeakTopics && res.stats.allWeakTopics.length > 0) {
+                            reportLines.push("\n📌 HATA / BOŞ YAPILAN TÜM KONULAR:");
+                            for (var k = 0; k < res.stats.allWeakTopics.length; k++) {
+                                var w = res.stats.allWeakTopics[k];
+                                reportLines.push("- " + w.topic + " (" + w.count + " kez)");
+                            }
+                        }
+
+                        $('#weak-topics-box').val(reportLines.join('\n'));
+                    }
+
+                    $('#completed-area').fadeIn();
+                }
+
+                $('#btn-copy-topics').click(function () {
+                    var box = document.getElementById('weak-topics-box');
+                    box.select();
+                    navigator.clipboard.writeText(box.value);
+                    $(this).html('<i class="bi bi-check2"></i> Kopyalandı!');
+                    var btn = $(this);
+                    setTimeout(function () { btn.html('<i class="bi bi-clipboard"></i> Kopyala'); }, 2000);
+                });
+    </script>
+}

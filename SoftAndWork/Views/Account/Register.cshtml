@@ -1,0 +1,32 @@
+﻿@{
+    ViewData["Title"] = "Kayıt Ol - Soft and Work";
+}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card shadow-sm border-0" style="background-color: #fdfdfd;">
+                <div class="card-body p-4">
+                    <h3 class="text-center mb-4" style="color: #4a148c;">Kayıt Ol</h3>
+                    @if (ViewBag.Error != null)
+                    {
+                        <div class="alert alert-danger">@ViewBag.Error</div>
+                    }
+                    <form asp-action="Register" method="post">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Kullanıcı Adı Belirle</label>
+                            <input type="text" name="username" class="form-control" required />
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label text-muted">Şifre Belirle</label>
+                            <input type="password" name="password" class="form-control" required />
+                        </div>
+                        <button type="submit" class="btn w-100 mb-3 text-white" style="background-color: #2e7d32;">Hesap Oluştur</button>
+                        <div class="text-center">
+                            <a asp-action="Login" class="text-muted" style="text-decoration: none;">Zaten hesabım var</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
